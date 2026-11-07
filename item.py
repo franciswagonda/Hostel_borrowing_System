@@ -54,22 +54,3 @@ class SpecialItem(Item):
     loan_days = 1
     requires_approval = True
 
-if __name__ == "__main__":
-    class FakeOwner:
-        name = "Amina"
-
-    # Testing child classes
-    items = [
-        DailyItem("Phone charger", FakeOwner()),
-        SpecialItem("Formal shoes", FakeOwner())
-    ]
-
-    for i in items:
-        print(i, i.loan_days, i.requires_approval)
-
-    # Testing abstract class restriction (should raise TypeError)
-    try:
-        Item("x", FakeOwner())
-        print("FAIL: Item class should not be directly instantiated!")
-    except TypeError:
-        print("SUCCESS: Attempting to create Item() raised a TypeError as expected.")
