@@ -102,12 +102,3 @@ README.md
 | Nshemiire Shawn | `notifiers.py` | Notifiers (duck typing) and conflict policies (polymorphism) |
 | Diana Atugonza | `club.py` | Club rules and how the classes work together |
 | Francis Wagonda | `main.py` | Menu, starting data and program start |
-
-## Built by
-
-A group project by five members, each building one file from scratch. See the team table above.
-
-## Limits and next steps
-
-- Data is kept in memory only, so it resets every time the app closes.
-- Next steps: save records to a file, add a login for keepers, and add a simple web sign-up form.
