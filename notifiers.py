@@ -8,7 +8,7 @@ from datetime import timedelta
 # class variable `name` and a method send(member, text). Any object
 # with those two things can be used as a notifier ("if it quacks
 # like a duck, it is a duck").
-# NSHEMIIRE SHAWN S5B13/023---------------------------------------------------------------
+# NSHEMIIRE SHAWN S25B13/023---------------------------------------------------------------
 
 class ConsoleNotifier:
     """DUCK TYPING: no parent class, only name + send()."""
