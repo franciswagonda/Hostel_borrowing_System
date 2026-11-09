@@ -1,109 +1,257 @@
 """
-main.py  -  OWNER: Francis Wagonda
-====================================
-Your job: the screen the user sees. You write the menu and connect each menu
-number to the right action. You also join the four other files, so you finish
-last. Run the app with:
-    python3 main.py
+Program entry point and command line menu.
 
-You can build and test STEPS 2, 3 and 5 before the other files are ready.
-Do NOT rename anything the other files provide.
+
+Run:  python3 main.py
+
 """
+from datetime import timedelta
 
-# STEP 1: imports  (uncomment each line when that file is ready)
-# from datetime import timedelta
-# from club import Club, MAX_ACTIVE_LOANS
-# from items import DailyItem, HouseholdItem, StudyItem, SpecialItem
-# from people import Member, Keeper
-# from notifiers import ConsoleNotifier, WhatsAppNotifier, SmsNotifier
-
-
-# STEP 2: two helper functions (test these first)
-# TODO: ask(prompt)
-#         shows the prompt and returns what the user typed with spaces removed.
-#         If the input ends unexpectedly (EOFError), print a blank line and exit.
-# TODO: pick(options, label)
-#         empty list -> print "No <label> to choose from." and return None
-#         otherwise print the options numbered from 1, ask
-#         "Choose <label> number (Enter to cancel): " and return the chosen one.
-#         Invalid answer -> print "Cancelled." and return None.
+from club import Club, MAX_ACTIVE_LOANS
+from items import DailyItem, HouseholdItem, StudyItem, SpecialItem
+from people import Member, Keeper
+from notifiers import ConsoleNotifier, WhatsAppNotifier, SmsNotifier
 
 
-# STEP 3: the menu text
-# TODO: MENU = a multi-line text showing:
-#   1. Show available items
-#   2. Borrow an item
-#   3. Return an item
-#   4. Show items currently out
-#   5. Run conflict check (overdue items)
-#   6. Resolve an overdue loan
-#   7. Confirm a replacement of a lost item
-#   8. Move calendar forward (to test late returns)
-#   9. Show members
-#  10. Register new member
-#  11. Add an item to the shelf
-#  12. Change how members are notified
-#   0. Exit
+def ask(prompt):
+    try:
+        return input(prompt).strip()
+    except EOFError:
+        print()
+        raise SystemExit
 
 
-# STEP 4: one function per menu number. Each takes club.
-# TODO: show_items(club)      1  print club.available_items(); add
-#                                "(needs keeper approval)" where requires_approval
-# TODO: borrow_flow(club)     2  pick a member; ask club.check_member(member), if no
-#                                print the reason and stop; show how many of the 2
-#                                slots are used; pick an item the member does not own;
-#                                if it needs approval ask the keeper y/n; call
-#                                club.borrow(...) and print the message
-# TODO: return_flow(club)     3  nothing out -> hint to borrow first; otherwise pick
-#                                from club.active_loans() and call club.give_back
-# TODO: show_loans(club)      4  print today, then each active loan with its due date
-#                                and "OVERDUE by N day(s)" or "on time"
-# (5 needs no function: call club.run_conflict_check())
-# TODO: resolve_flow(club)    6  nothing overdue -> hint to use option 8; otherwise
-#                                pick an overdue loan and offer: 1 returned now,
-#                                2 extension of 1-3 days, 3 lost or broken
-# TODO: replacement_flow(club) 7 pick from members whose owes is set; call
-#                                club.confirm_replacement(member)
-# TODO: advance_flow(club)    8  ask how many days (positive whole number only);
-#                                club.today += timedelta(days=n)
-# TODO: members_list(club)    9  print each member with late returns, KEEPER for
-#                                keepers (use isinstance), suspension date, what they owe
-# TODO: register_flow(club)   10 ask name and room, add a Member to club.members
-# TODO: add_item_flow(club)   11 pick an owner and an item type, ask the name,
-#                                add the item to club.items
-# TODO: change_notifier(club) 12 ask which notifier and set club.notifier
+def pick(options, label):
+    if not options:
+        print(f"No {label} to choose from.")
+        return None
+    for n, o in enumerate(options, 1):
+        print(f"  {n}. {o}")
+    c = ask(f"Choose {label} number (Enter to cancel): ")
+    if c.isdigit() and 1 <= int(c) <= len(options):
+        return options[int(c) - 1]
+    print("Cancelled.")
+    return None
 
 
-# STEP 5: choose_notifier()
-# TODO: print the three choices (1 notice board, 2 WhatsApp, 3 SMS), ask until the
-#       user types 1, 2 or 3, print "Notifications will now be sent by: <name>"
-#       and return the new notifier object.
+def show_items(club):
+    items = club.available_items()
+    print("\nAVAILABLE ITEMS")
+    if not items:
+        print("  Nothing is available right now.")
+    for i in items:
+        flag = "  (needs keeper approval)" if i.requires_approval else ""
+        print(f"  {i}{flag}")
 
 
-# STEP 6: seed(club)  -  demo data so every option works from the start
-# TODO: members: Amina (a Keeper, room A12), Brian (B07), Cathy (C03), Dan (A15)
-# TODO: six items: Phone charger (Daily, Amina), Calculator (Daily, Brian),
-#       Iron box (Household, Cathy), Kettle (Household, Dan),
-#       Law textbook (Study, Brian), Formal shoes (Special, Cathy)
-# TODO: three borrowings with club.borrow, then moved into the past by changing
-#       loan.start and loan.due:
-#         Brian's charger 5 days ago (overdue)
-#         Dan's calculator 9 days ago (very overdue)
-#         Cathy's kettle 1 day ago (on time)
+def borrow_flow(club):
+    member = pick(club.members, "member")
+    if not member:
+        return
+    ok, why = club.check_member(member)
+    if not ok:
+        print(f"Cannot borrow: {why}.")
+        return
+    print(f"{member.name} is using {club.active_count(member)} of {MAX_ACTIVE_LOANS} borrow slots.")
+    items = [i for i in club.available_items() if i.owner is not member]
+    item = pick(items, "item to borrow")
+    if not item:
+        return
+    approved = True
+    if item.requires_approval:
+        approved = ask(f"Keeper, approve '{item.name}' for {member.name}? (y/n): ").lower() == "y"
+    ok, msg = club.borrow(member, item, approved)
+    print(msg)
+    if ok:
+        print(f"{member.name} now has {club.active_count(member)} of {MAX_ACTIVE_LOANS} borrow slots used.")
 
 
-# STEP 7: main()
-# TODO: create Club(choose_notifier()), call seed(club), then loop forever:
-#         print MENU, ask "Choose: ", call the matching function from a dictionary
-#         {"1": show_items, ...}. "0" prints "Goodbye!" and stops. Anything else
-#         prints "Please choose a number from the menu."
+def return_flow(club):
+    if not club.active_loans():
+        print("Nothing is out right now. Borrow something first (option 2).")
+        return
+    loan = pick(club.active_loans(), "loan to return")
+    if loan:
+        print(club.give_back(loan))
+
+
+def show_loans(club):
+    print(f"\nTODAY: {club.today}")
+    loans = club.active_loans()
+    if not loans:
+        print("  No items are out right now.")
+    for l in loans:
+        late = l.days_late(club.today)
+        status = f"OVERDUE by {late} day(s)" if late else "on time"
+        print(f"  {l.item.name} -> {l.member.name}, due {l.due} ({status})")
+
+
+def resolve_flow(club):
+    if not club.overdue_loans():
+        print("No overdue loans. Use option 8 to move the calendar forward and make one late.")
+        return
+    loan = pick(club.overdue_loans(), "overdue loan to resolve")
+    if not loan:
+        return
+    print("\nHow was it resolved?")
+    print("  1. Borrower returned it now")
+    print("  2. Owner agrees to an extension")
+    print("  3. Item is lost / broken (borrower must replace)")
+    c = ask("Choose: ")
+    if c == "1":
+        print(club.give_back(loan))
+    elif c == "2":
+        days = ask("Extra days (1-3): ")
+        if days.isdigit() and 1 <= int(days) <= 3:
+            club.extend(loan, int(days))
+            print(f"Extended. New due date: {loan.due}.")
+        else:
+            print("Extension must be 1 to 3 days.")
+    elif c == "3":
+        club.mark_lost(loan)
+        print(f"'{loan.item.name}' marked lost. {loan.member.name} cannot borrow until it is replaced.")
+    else:
+        print("Cancelled.")
+
+
+def replacement_flow(club):
+    owing = [m for m in club.members if m.owes]
+    if not owing:
+        print("Nobody owes a replacement. Mark an item as lost first (option 6, then 3).")
+        return
+    m = pick(owing, "member who is replacing an item")
+    if m:
+        print(club.confirm_replacement(m))
+
+
+def advance_flow(club):
+    n = ask("Move the calendar forward by how many days? ")
+    if n.isdigit() and int(n) > 0:
+        club.today += timedelta(days=int(n))
+        print(f"Today is now {club.today}.")
+        if club.overdue_loans():
+            print("Some items are overdue. Use option 5 to run the conflict check.")
+    else:
+        print("Enter a positive number.")
+
+
+def register_flow(club):
+    name, room = ask("Name: "), ask("Room: ")
+    if name and room:
+        club.members.append(Member(name, room))
+        print(f"Welcome, {name}!")
+    else:
+        print("Name and room are required.")
+
+
+def add_item_flow(club):
+    owner = pick(club.members, "owner")
+    if not owner:
+        return
+    kinds = [DailyItem, HouseholdItem, StudyItem, SpecialItem]
+    kind = pick([f"{k.category} ({k.loan_days} day)" for k in kinds], "item type")
+    if not kind:
+        return
+    name = ask("Item name: ")
+    if name:
+        cls = kinds[[f"{k.category} ({k.loan_days} day)" for k in kinds].index(kind)]
+        club.items.append(cls(name, owner))
+        print(f"Added '{name}'.")
+
+
+def members_list(club):
+    print("\nMEMBERS")
+    for m in club.members:
+        notes = []
+        if isinstance(m, Keeper):
+            notes.append("KEEPER")
+        if m.suspended_until and club.today <= m.suspended_until:
+            notes.append(f"suspended until {m.suspended_until}")
+        if m.owes:
+            notes.append(f"owes: {m.owes.name}")
+        print(f"  {m}  late returns: {m.late_returns}  {' | '.join(notes)}")
+
+
+def seed(club):
+    amina = Keeper("Amina", "A12")
+    brian, cathy, dan = Member("Brian", "B07"), Member("Cathy", "C03"), Member("Dan", "A15")
+    club.members += [amina, brian, cathy, dan]
+    club.items += [
+        DailyItem("Phone charger", amina), DailyItem("Calculator", brian),
+        HouseholdItem("Iron box", cathy), HouseholdItem("Kettle", dan),
+        StudyItem("Law textbook", brian), SpecialItem("Formal shoes", cathy),
+    ]
+    # Demo situation so every menu option has something to work on from the start
+    def lend(member, item_name, days_ago):
+        item = next(i for i in club.items if i.name == item_name)
+        club.borrow(member, item)
+        loan = club.loans[-1]
+        loan.start = club.today - timedelta(days=days_ago)
+        loan.due = loan.start + timedelta(days=item.loan_days)
+        return loan
+
+    lend(brian, "Phone charger", 5)    # due 4 days ago -> overdue (warning level)
+    lend(cathy, "Kettle", 1)           # on time
+    lend(dan, "Calculator", 9)         # overdue (suspension level)
+    lost = lend(cathy, "Law textbook", 4)
+    club.mark_lost(lost)               # Cathy lost it and must replace it
+    cathy.late_returns = 1
+
+
+MENU = """
+===== HOSTEL BORROWING CLUB =====
+ 1. Show available items
+ 2. Borrow an item
+ 3. Return an item
+ 4. Show items currently out
+ 5. Run conflict check (overdue items)
+ 6. Resolve an overdue loan
+ 7. Confirm a replacement of a lost item
+ 8. Move calendar forward (to test late returns)
+ 9. Show members
+10. Register new member
+11. Add an item to the shelf
+12. Change how members are notified
+ 0. Exit"""
+
+
+def choose_notifier():
+    """DUCK TYPING: the three notifiers are different classes with no shared parent."""
+    options = {"1": ConsoleNotifier, "2": WhatsAppNotifier, "3": SmsNotifier}
+    while True:
+        print("\nHow should members be notified?  1 = notice board  2 = WhatsApp  3 = SMS")
+        c = ask("Choose 1, 2 or 3: ")
+        if c in options:
+            notifier = options[c]()
+            print(f"Notifications will now be sent by: {notifier.name}")
+            return notifier
+        print("Please type 1, 2 or 3.")
+
+
+def change_notifier(club):
+    club.notifier = choose_notifier()
+
+
 def main():
-    pass
+    # DUCK TYPING: swap in any notifier, the Club does not mind.
+    club = Club(choose_notifier())
+    seed(club)
+    actions = {
+        "1": show_items, "2": borrow_flow, "3": return_flow, "4": show_loans,
+        "5": lambda c: c.run_conflict_check(), "6": resolve_flow, "7": replacement_flow,
+        "8": advance_flow, "9": members_list, "10": register_flow, "11": add_item_flow,
+        "12": change_notifier,
+    }
+    while True:
+        print(MENU)
+        print(f"(Notifications: {club.notifier.name})")
+        c = ask("Choose: ")
+        if c == "0":
+            print("Goodbye!")
+            break
+        action = actions.get(c)
+        action(club) if action else print("Please choose a number from the menu.")
 
 
 if __name__ == "__main__":
     main()
-
-# STEP 8: test. Run python3 main.py and use every option from 1 to 12 once.
-# Try typing letters and empty answers too. The app must never crash.
-# DONE WHEN: all 12 options work from a fresh start and you can run the demo story.
