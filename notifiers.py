@@ -1,95 +1,153 @@
-"""
-notifiers.py  -  OWNER: Nshemiire Shawn
-=========================================
-Your job: the messages the club sends, and the rules for what happens when
-an item is late.
-OOP ideas to show: DUCK TYPING, ABSTRACTION, POLYMORPHISM.
-
-Build it one step at a time. Run the file after every step:
-    python3 notifiers.py
-Do NOT rename anything in this file. Other files use these exact names.
-"""
-
-# STEP 1: imports
-# TODO: from abc import ABC, abstractmethod
-# TODO: from datetime import timedelta
+from abc import ABC, abstractmethod
+from datetime import timedelta
 
 
-# STEP 2: three notifiers  (DUCK TYPING)
-# They must NOT share a parent class. Each one only needs:
-#   - a class variable  name
-#   - a method          send(self, member, text)
-# The member's name is member.name and the room is member.room.
-#
-#   Class             name           send(...) prints
-#   ConsoleNotifier   "Notice board" "   [notice board] Brian: <text>"
-#   WhatsAppNotifier  "WhatsApp"     "   [WhatsApp -> room B07] Hi Brian, <text>"
-#   SmsNotifier       "SMS"          "   [SMS] Brian: <first 80 characters of text>"
-#
-# TODO: write the three classes below.
+# ---------------------------------------------------------------
+# NOTIFIERS - DUCK TYPING
+# These three classes share NO parent class. Each one simply has a
+# class variable `name` and a method send(member, text). Any object
+# with those two things can be used as a notifier ("if it quacks
+# like a duck, it is a duck").
+# NSHEMIIRE SHAWN S5B13/023---------------------------------------------------------------
+
 class ConsoleNotifier:
-    pass
+    """DUCK TYPING: no parent class, only name + send()."""
+    name = "Notice board"
+
+    def send(self, member, text):
+        print(f"[notice board] {member.name}: {text}")
 
 
 class WhatsAppNotifier:
-    pass
+    """DUCK TYPING: no parent class, only name + send()."""
+    name = "WhatsApp"
+
+    def send(self, member, text):
+        print(f"[WhatsApp -> room {member.room}] Hi {member.name}, {text}")
 
 
 class SmsNotifier:
-    pass
+    """DUCK TYPING: no parent class, only name + send()."""
+    name = "SMS"
+
+    def send(self, member, text):
+        print(f"[SMS] {member.name}: {text[:80]}")
 
 
-# STEP 3: the abstract class ConflictPolicy  (ABSTRACTION)
-# TODO: make it inherit from ABC and add two ABSTRACT methods:
-#         applies(self, days_late)             -> True or False
-#         handle(self, loan, club, notifier)   -> does the action
-class ConflictPolicy:
-    pass
+# ---------------------------------------------------------------
+# CONFLICT POLICIES - ABSTRACTION + POLYMORPHISM
+# ---------------------------------------------------------------
+
+class ConflictPolicy(ABC):
+    """ABSTRACTION: cannot be created directly. Every policy MUST
+    say when it applies and what it does."""
+
+    @abstractmethod
+    def applies(self, days_late):
+        ...
+
+    @abstractmethod
+    def handle(self, loan, club, notifier):
+        ...
 
 
-# STEP 4: three policies  (INHERITANCE + POLYMORPHISM)
-# Each extends ConflictPolicy and has a class variable  label.
-# Always send messages with  notifier.send(person, text).
-#
-# ReminderPolicy   label "Level 1 - friendly reminder"
-#   applies: 1 to 2 days late
-#   handle:  send loan.member: "please return '<item name>'. It was due <due date>."
-#
-# WarningPolicy    label "Level 2 - formal warning"
-#   applies: 3 to 5 days late
-#   handle:  if loan.handled_level != 2, add 1 to loan.member.late_returns
-#            send loan.member a warning that includes their late_returns count
-#            send loan.item.owner a message that the item is late
-#
-# SuspensionPolicy label "Level 3 - suspension and replacement talk"
-#   applies: 6 or more days late
-#   handle:  set loan.member.suspended_until to club.today + timedelta(days=7)
-#            tell the borrower they are suspended until that date
-#            tell loan.item.owner the item is 6+ days late
-#
-# TODO: write the three classes below.
 class ReminderPolicy(ConflictPolicy):
-    pass
+    """POLYMORPHISM: Level 1 - a friendly reminder (1 to 2 days late)."""
+    label = "Level 1 - friendly reminder"
+
+    def applies(self, days_late):
+        return 1 <= days_late <= 2
+
+    def handle(self, loan, club, notifier):
+        notifier.send(
+            loan.member,
+            f"please return '{loan.item.name}'. It was due {loan.due}."
+        )
 
 
 class WarningPolicy(ConflictPolicy):
-    pass
+    """POLYMORPHISM: Level 2 - a formal warning (3 to 5 days late)."""
+    label = "Level 2 - formal warning"
+
+    def applies(self, days_late):
+        return 3 <= days_late <= 5
+
+    def handle(self, loan, club, notifier):
+        # Count the late return only once for this loan
+        if loan.handled_level != 2:
+            loan.member.late_returns += 1
+        notifier.send(
+            loan.member,
+            f"this is a formal warning. '{loan.item.name}' is overdue "
+            f"(due {loan.due}). Late returns so far: "
+            f"{loan.member.late_returns}."
+        )
+        notifier.send(
+            loan.item.owner,
+            f"your item '{loan.item.name}' is late. "
+            f"{loan.member.name} has not returned it (due {loan.due})."
+        )
 
 
 class SuspensionPolicy(ConflictPolicy):
-    pass
+    """POLYMORPHISM: Level 3 - suspension and replacement talk
+    (6 or more days late)."""
+    label = "Level 3 - suspension and replacement talk"
+
+    def applies(self, days_late):
+        return days_late >= 6
+
+    def handle(self, loan, club, notifier):
+        until = club.today + timedelta(days=7)
+        loan.member.suspended_until = until
+        notifier.send(
+            loan.member,
+            f"you are suspended until {until} because '{loan.item.name}' "
+            f"is badly overdue. Please return it or arrange a replacement."
+        )
+        notifier.send(
+            loan.item.owner,
+            f"your item '{loan.item.name}' is 6+ days late. "
+            f"{loan.member.name} has been suspended."
+        )
 
 
-# STEP 5: test your work
-# TODO: under the line below, make fake classes for a person (name, room,
-#       late_returns, suspended_until), an item (name, owner), a loan
-#       (item, member, due, handled_level) and a club (today).
-#       Then loop over the three notifiers and the three policies (with 2, 4
-#       and 8 days late) and call policy.handle(...) each time.
-#       Also check that ConflictPolicy() raises a TypeError.
+# ---------------------------------------------------------------
+# TEST - runs only when this file is run directly
+# ---------------------------------------------------------------
+
 if __name__ == "__main__":
-    pass
+    from datetime import date
 
-# DONE WHEN: you see nine messages in three styles with no errors, and you can
-# explain why the notifiers need no parent class but the policies do.
-# HAND OVER: send this file to Diana and Francis.
+    class P:  # fake person
+        def __init__(self, name, room):
+            self.name, self.room = name, room
+            self.late_returns, self.suspended_until = 0, None
+
+    class FakeItem:
+        name = "Phone charger"
+        owner = P("Amina", "A12")
+
+    class FakeLoan:
+        item = FakeItem()
+        member = P("Brian", "B07")
+        due = date.today()
+        handled_level = None
+
+    class FakeClub:
+        today = date.today()
+
+    for n in (ConsoleNotifier(), WhatsAppNotifier(), SmsNotifier()):
+        print(f"--- {n.name} ---")
+        for days, policy in ((2, ReminderPolicy()),
+                             (4, WarningPolicy()),
+                             (8, SuspensionPolicy())):
+            assert policy.applies(days)
+            print(policy.label)
+            policy.handle(FakeLoan(), FakeClub(), n)
+
+    # ConflictPolicy is abstract, so this must fail
+    try:
+        ConflictPolicy()
+    except TypeError as e:
+        print("OK, TypeError as expected:", e)
