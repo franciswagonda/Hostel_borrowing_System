@@ -1,71 +1,56 @@
-"""
-items.py  -  OWNER: Alvin Mugisha Allan
-=========================================
-Your job: describe the things that can be borrowed.
-OOP ideas to show: ABSTRACTION, INHERITANCE, POLYMORPHISM.
-
-Build it one step at a time. Run the file after every step:
-    python3 items.py
-Do NOT rename anything in this file. Other files use these exact names.
-"""
-
-# STEP 1: imports
-# TODO: import ABC and abstractmethod from the abc module.
+from abc import ABC, abstractmethod
+# ABSTRACTION: Item is an abstract base class that cannot be instantiated directly.
+from abc import ABC
 
 
-# STEP 2: the abstract class Item
-# ABSTRACTION: nobody should be able to create a plain Item.
-# TODO: make Item inherit from ABC.
-# TODO: add a class variable _next_id = 1 (it counts the items).
-# TODO: write __init__(self, name, owner). It must set:
-#         self.item_id   -> take the number from _next_id, then add 1 to _next_id
-#         self.name      -> the name of the item
-#         self.owner     -> the member who owns it
-#         self.status    -> the text "available"
-# TODO: add two ABSTRACT properties: category and loan_days
-#         (use @property and @abstractmethod together, like the Animal example)
-# TODO: add a class variable requires_approval = False
-# TODO: write __str__ so that printing an item shows something like:
-#         #001 Phone charger [Daily use, 1 day(s)] - owner: Amina
-class Item:
-    pass
+class Item(ABC):
+    _next_id = 1
+    requires_approval = False
 
+    def __init__(self, name, owner):
+        self.item_id = Item._next_id
+        Item._next_id += 1
+        self.name = name
+        self.owner = owner
+        self.status = "available"
 
-# STEP 3: four child classes
-# INHERITANCE: each child extends Item and only sets class variables.
-# POLYMORPHISM: each child gives its OWN loan_days.
-#
-#   Class          category      loan_days   requires_approval
-#   DailyItem      "Daily use"   1           False
-#   HouseholdItem  "Household"   3           False
-#   StudyItem      "Study"       7           False
-#   SpecialItem    "Special"     1           True
-#
-# TODO: replace each "pass" below with the right class variables.
+    @property
+    @abstractmethod
+    def category(self):
+        """Must return the category string."""
+        pass
+
+    @property
+    @abstractmethod
+    def loan_days(self):
+        """Must return the number of loan days."""
+        pass
+
+    def __str__(self):
+        return f"#{self.item_id:03d} {self.name} [{self.category}, {self.loan_days} day(s)] owner: {self.owner.name}"
+    
+# INHERITANCE & POLYMORPHISM: Each child fills in its specific category, loan_days, and approval rules.
+
 class DailyItem(Item):
-    pass
+    category = "Daily use"
+    loan_days = 1
+    requires_approval = False
 
 
 class HouseholdItem(Item):
-    pass
+    category = "Household"
+    loan_days = 3
+    requires_approval = False
 
 
 class StudyItem(Item):
-    pass
+    category = "Study"
+    loan_days = 7
+    requires_approval = False
 
 
 class SpecialItem(Item):
-    pass
+    category = "Special"
+    loan_days = 1
+    requires_approval = True
 
-
-# STEP 4: test your work
-# TODO: under the line below, create a FakeOwner class with a name attribute,
-#       make a DailyItem and a SpecialItem, and print them with their
-#       loan_days and requires_approval.
-# TODO: also try Item("x", owner) and check that you get a TypeError.
-if __name__ == "__main__":
-    pass
-
-# DONE WHEN: your test prints correctly, Item("x", owner) fails, and you can
-# explain why Item is abstract and how each child gives its own loan_days.
-# HAND OVER: send this file to Francis.
