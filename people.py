@@ -1,70 +1,80 @@
-"""
-people.py  -  OWNER: Iyamumpaye Brenda
-========================================
-Your job: describe the people in the club and the record of each borrowing.
-OOP idea to show: INHERITANCE (a keeper is a member).
+from datetime import timedelta
 
-Build it one step at a time. Run the file after every step:
-    python3 people.py
-Do NOT rename anything in this file. Other files use these exact names.
-"""
-
-# STEP 1: imports
-# TODO: from datetime import timedelta
-
-
-# STEP 2: the class Member
-# TODO: add a class variable _next_id = 1
-# TODO: write __init__(self, name, room). It must set:
-#         self.member_id      -> take the number from _next_id, then add 1
-#         self.name
-#         self.room
-#         self.late_returns   -> 0
-#         self.suspended_until -> None
-#         self.owes           -> None   (will hold an item they lost)
-# TODO: write can_borrow(self, today). It returns a PAIR:
-#         (False, "must replace lost item: <item name>")  if self.owes is not None
-#         (False, "suspended until <date>")                if suspended_until is
-#                                                          not None and today <= suspended_until
-#         (True, "")                                       otherwise
-# TODO: write __str__ so printing a member shows: Brian (room B07)
 class Member:
-    pass
+    _next_id = 1
+
+    def __init__(self, name, room):
+        self.member_id = Member._next_id
+        Member._next_id += 1
+        self.name = name
+        self.room = room
+        self.late_returns = 0
+        self.suspended_until = None
+        self.owes = None
+
+    def can_borrow(self, today):
+        # 1. Check if they owe a lost item
+        if self.owes is not None:
+            return False, f"must replace lost item: {self.owes.name}"
+        
+        # 2. Check if they are suspended
+        if self.suspended_until is not None and today <= self.suspended_until:
+            return False, f"suspended until {self.suspended_until}"
+        
+        # 3. If all clear, they can borrow
+        return True, ""
+
+    def __str__(self):
+        return f"{self.name} (room {self.room})"
 
 
-# STEP 3: the class Keeper
-# INHERITANCE: Keeper extends Member, so it needs no copy of the Member code.
-# TODO: make Keeper inherit from Member.
-# TODO: write approve(self, item, borrower) that returns True.
-class Keeper:
-    pass
+# INHERITANCE: Keeper extends Member
+class Keeper(Member):
+    def approve(self, item, borrower):
+        return True
 
 
-# STEP 4: the class Loan
-# TODO: write __init__(self, item, member, start). It must set:
-#         self.item, self.member, self.start
-#         self.due           -> start + timedelta(days=item.loan_days)
-#                               (POLYMORPHISM: each item type gives its own days)
-#         self.returned_on   -> None
-#         self.handled_level -> None
-# TODO: write days_late(self, today): how many days today is after due,
-#       or 0 if it is not late. Hint: (today - self.due).days and max(0, ...)
-# TODO: write a property called active: True while returned_on is None
-# TODO: write __str__ so printing a loan shows:
-#         Phone charger - Brian (due 2026-11-04)
 class Loan:
-    pass
+    def __init__(self, item, member, start):
+        self.item = item
+        self.member = member
+        self.start = start
+        # POLYMORPHISM: Each item type gives its own number of days for the due date
+        self.due = start + timedelta(days=item.loan_days)
+        self.returned_on = None
+        self.handled_level = None
+
+    def days_late(self, today):
+        # Returns the number of days late, or 0 if not late
+        return max(0, (today - self.due).days)
+
+    @property
+    def active(self):
+        return self.returned_on is None
+
+    def __str__(self):
+        return f"{self.item.name} - {self.member.name} (due {self.due})"
 
 
-# STEP 5: test your work
-# TODO: under the line below, make a FakeItem class with name and loan_days,
-#       then create a Member, a Keeper and a Loan started 4 days ago.
-#       Print isinstance(keeper, Member), the loan, days_late and active.
-#       Then set suspended_until to 3 days from now and print can_borrow.
+
+# TESTING BLOCK (Step 5 from the guide)
+
 if __name__ == "__main__":
-    pass
+    from datetime import date, timedelta
 
-# DONE WHEN: the loan is 3 days late and active, isinstance prints True,
-# can_borrow says False with a suspension message, and you can explain why
-# Keeper does not need to repeat the Member code.
-# HAND OVER: send this file to Diana and Francis.
+    class FakeItem:
+        name = "Phone charger"
+        loan_days = 1
+
+    b = Member("Brian", "B07")
+    k = Keeper("Amina", "A12")
+    
+    # Make a loan that started 4 days ago
+    loan = Loan(FakeItem(), b, date.today() - timedelta(days=4))
+    
+    print(b, k, isinstance(k, Member))
+    print(loan, loan.days_late(date.today()), loan.active)
+    
+    # Suspend Brian for 3 days to test can_borrow
+    b.suspended_until = date.today() + timedelta(days=3)
+    print(b.can_borrow(date.today()))
